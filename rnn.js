@@ -482,7 +482,7 @@ class CharRNN {
         // 返回概率最高的几个字符
         const predictions = [];
         for (let i = 0; i < y.length; i++) {
-            const char = this.indexToChar_[i];
+            const char = this.indexToChar_(i);
             predictions.push({
                 char: char,
                 probability: y[i]
