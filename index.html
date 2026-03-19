@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RNN 可视化 - 理解循环神经网络</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 RNN 可视化演示</h1>
+            <p class="subtitle">理解循环神经网络的结构与原理</p>
+        </header>
+
+        <div class="main-content">
+            <!-- 左侧：RNN结构可视化 -->
+            <section class="visualization-panel">
+                <h2>📊 RNN 结构</h2>
+                
+                <!-- 时间步展开视图 -->
+                <div class="rnn-unrolled">
+                    <div class="timestep" id="timestep-0">
+                        <div class="timestep-label">t=0</div>
+                        <div class="neuron input-neuron">
+                            <span class="label">x₀</span>
+                        </div>
+                        <div class="neuron hidden-neuron">
+                            <span class="label">h₀</span>
+                        </div>
+                        <div class="neuron output-neuron">
+                            <span class="label">y₀</span>
+                        </div>
+                    </div>
+                    
+                    <div class="timestep" id="timestep-1">
+                        <div class="timestep-label">t=1</div>
+                        <div class="neuron input-neuron">
+                            <span class="label">x₁</span>
+                        </div>
+                        <div class="neuron hidden-neuron">
+                            <span class="label">h₁</span>
+                        </div>
+                        <div class="neuron output-neuron">
+                            <span class="label">y₁</span>
+                        </div>
+                    </div>
+                    
+                    <div class="timestep" id="timestep-2">
+                        <div class="timestep-label">t=2</div>
+                        <div class="neuron input-neuron">
+                            <span class="label">x₂</span>
+                        </div>
+                        <div class="neuron hidden-neuron">
+                            <span class="label">h₂</span>
+                        </div>
+                        <div class="neuron output-neuron">
+                            <span class="label">y₂</span>
+                        </div>
+                    </div>
+                    
+                    <div class="timestep" id="timestep-3">
+                        <div class="timestep-label">t=3</div>
+                        <div class="neuron input-neuron">
+                            <span class="label">x₃</span>
+                        </div>
+                        <div class="neuron hidden-neuron">
+                            <span class="label">h₃</span>
+                        </div>
+                        <div class="neuron output-neuron">
+                            <span class="label">y₃</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 动画画布 -->
+                <canvas id="rnn-canvas" width="800" height="400"></canvas>
+                
+                <!-- 数据流动画区域 -->
+                <div id="flow-animation">
+                    <div class="flow-info">
+                        <span id="current-step">准备开始...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右侧：控制面板 -->
+            <aside class="control-panel">
+                <h2>⚙️ 控制面板</h2>
+                
+                <!-- 输入序列 -->
+                <div class="control-group">
+                    <label>输入序列:</label>
+                    <input type="text" id="input-sequence" value="hello" placeholder="输入字符序列">
+                    <small>每个字符作为一个时间步的输入</small>
+                </div>
+                
+                <!-- 参数调节 -->
+                <div class="control-group">
+                    <label>隐藏层大小: <span id="hidden-size-value">8</span></label>
+                    <input type="range" id="hidden-size" min="4" max="32" value="8">
+                </div>
+                
+                <div class="control-group">
+                    <label>学习率: <span id="learning-rate-value">0.01</span></label>
+                    <input type="range" id="learning-rate" min="0.001" max="0.1" step="0.001" value="0.01">
+                </div>
+                
+                <div class="control-group">
+                    <label>训练轮数: <span id="epochs-value">100</span></label>
+                    <input type="range" id="epochs" min="10" max="500" step="10" value="100">
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="button-group">
+                    <button id="btn-forward" class="btn btn-primary">▶️ 前向传播</button>
+                    <button id="btn-train" class="btn btn-success">🔄 训练模型</button>
+                    <button id="btn-predict" class="btn btn-info">🎯 预测下一个</button>
+                    <button id="btn-reset" class="btn btn-warning">🔃 重置</button>
+                </div>
+                
+                <!-- 训练进度 -->
+                <div class="progress-section">
+                    <h3>📈 训练进度</h3>
+                    <div class="progress-bar">
+                        <div id="training-progress" class="progress-fill"></div>
+                    </div>
+                    <div id="loss-display">
+                        <span>Loss: <strong id="current-loss">-</strong></span>
+                        <span>Epoch: <strong id="current-epoch">0</strong></span>
+                    </div>
+                </div>
+                
+                <!-- 数学公式 -->
+                <div class="formula-section">
+                    <h3>📐 核心公式</h3>
+                    <div class="formula">
+                        <strong>隐藏状态:</strong><br>
+                        h<sub>t</sub> = tanh(W<sub>hh</sub> · h<sub>t-1</sub> + W<sub>xh</sub> · x<sub>t</sub> + b<sub>h</sub>)
+                    </div>
+                    <div class="formula">
+                        <strong>输出:</strong><br>
+                        y<sub>t</sub> = softmax(W<sub>hy</sub> · h<sub>t</sub> + b<sub>y</sub>)
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- 底部：输出与解释 -->
+        <section class="output-section">
+            <h2>📝 运行结果</h2>
+            <div class="output-container">
+                <div class="output-box">
+                    <h4>输入处理</h4>
+                    <div id="input-display">-</div>
+                </div>
+                <div class="output-box">
+                    <h4>隐藏状态变化</h4>
+                    <div id="hidden-display">-</div>
+                </div>
+                <div class="output-box">
+                    <h4>输出预测</h4>
+                    <div id="output-display">-</div>
+                </div>
+            </div>
+            
+            <div class="explanation-box">
+                <h4>💡 原理解释</h4>
+                <p id="explanation-text">
+                    RNN（循环神经网络）通过隐藏状态 h<sub>t</sub> 在时间步之间传递信息，使网络能够处理序列数据。
+                    每个时间步，网络接收当前输入 x<sub>t</sub> 和上一时刻的隐藏状态 h<sub>t-1</sub>，
+                    计算新的隐藏状态并产生输出 y<sub>t</sub>。
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <script src="rnn.js"></script>
+    <script src="visualize.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
