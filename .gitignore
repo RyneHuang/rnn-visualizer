@@ -1,0 +1,25 @@
+# Node modules
+node_modules/
+
+# Debug files
+debug*.js
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+temp/
+tmp/
