@@ -182,14 +182,16 @@ async function runForwardPropagation() {
     
     // 准备输入向量
     const inputVectors = [];
+    const charArray = [];
     for (const char of demoText) {
         const vector = charRNN.charToVector(char);
         inputVectors.push(vector);
+        charArray.push(char);
     }
     
     // 运行前向传播
     const rnn = charRNN.getRNN();
-    await visualizer.animateForward(inputVectors, rnn);
+    await visualizer.animateForward(inputVectors, rnn, charArray);
     
     // 显示结果
     displayForwardResults(demoText, rnn);

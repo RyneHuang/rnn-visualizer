@@ -608,6 +608,11 @@ header h1 {
     transform: scale(1.1);
 }
 
+.timestep-box.processed {
+    border-color: var(--success-color);
+    opacity: 0.7;
+}
+
 .timestep-box.ellipsis {
     background: transparent;
     border: none;
@@ -649,12 +654,18 @@ header h1 {
 
 .neuron-layer .value-display {
     position: absolute;
-    bottom: -20px;
+    bottom: -25px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     white-space: nowrap;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    min-width: 40px;
+    text-align: center;
 }
 
 .arrow-connector {

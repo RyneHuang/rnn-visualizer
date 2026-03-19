@@ -1,5 +1,5 @@
 /**
- * RNN 可视化模块
+ * RNN 可视化模块（改进版）
  * 处理RNN结构、数据流动画等可视化功能
  */
 
@@ -10,7 +10,7 @@ class RNNVisualizer {
         this.neurons = [];
         this.connections = [];
         this.currentTimestep = -1;
-        this.animationSpeed = 500; // ms
+        this.animationSpeed = 800; // ms，增加动画速度
     }
     
     /**
@@ -351,7 +351,12 @@ class RNNVisualizer {
         ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(neuron.value.toFixed(1), neuron.x, neuron.y);
+        
+        // 显示值（如果有）
+        const displayValue = neuron.value !== undefined && neuron.value !== 0 
+            ? neuron.value.toFixed(2) 
+            : '';
+        ctx.fillText(displayValue, neuron.x, neuron.y);
     }
     
     /**
@@ -443,15 +448,18 @@ class RNNVisualizer {
      * 重置高亮
      */
     resetHighlight() {
-        this.neurons.forEach(neuron => neuron.active = false);
+        this.neurons.forEach(neuron => {
+            neuron.active = false;
+            neuron.value = 0;
+        });
         this.connections.forEach(conn => conn.active = false);
         this.draw();
     }
     
     /**
-     * 动画展示前向传播过程
+     * 动画展示前向传播过程 - 改进版：实时更新数值
      */
-    async animateForward(inputSequence, rnn) {
+    async animateForward(inputSequence, rnn, charArray) {
         let h = new Array(this.hiddenSize).fill(0);
         
         for (let t = 0; t < inputSequence.length; t++) {
@@ -460,14 +468,22 @@ class RNNVisualizer {
             
             // 激活输入层
             this.activateLayer('input');
+            
+            // 获取输入字符
+            const inputChar = charArray ? charArray[t] : `x${t}`;
+            this.updateInputDisplay(inputChar, t);
+            
             await this.sleep(this.animationSpeed);
             
             // 前向传播
             const result = rnn.forwardStep(inputSequence[t], h);
             h = result.h;
             
-            // 更新值
+            // 更新Canvas中的值
             this.updateNeuronValues(inputSequence[t], h, result.y);
+            
+            // 更新时间步展开视图中的数值
+            this.updateTimestepValues(t, inputChar, h, result.y, charArray);
             
             // 激活隐藏层
             this.activateLayer('hidden');
@@ -483,23 +499,88 @@ class RNNVisualizer {
     }
     
     /**
+     * 更新输入显示
+     */
+    updateInputDisplay(char, t) {
+        const display = document.getElementById('current-step');
+        if (display) {
+            display.innerHTML = `处理时间步 t=${t} | 输入: <strong>"${char}"</strong>`;
+            display.style.color = '#667eea';
+        }
+    }
+    
+    /**
+     * 更新时间步展开视图中的数值显示 - 新增方法
+     */
+    updateTimestepValues(t, inputChar, hiddenState, output, charArray) {
+        const timestepBox = document.querySelector(`#timestep-${t}`);
+        if (!timestepBox) return;
+        
+        // 获取神经元元素
+        const neurons = timestepBox.querySelectorAll('.neuron');
+        if (neurons.length < 3) return;
+        
+        // 更新输入值显示
+        const inputNeuron = neurons[0];
+        const inputDisplay = inputNeuron.querySelector('.value-display');
+        if (inputDisplay) {
+            inputDisplay.textContent = `"${inputChar}"`;
+            inputDisplay.style.color = '#4299e1';
+        }
+        
+        // 更新隐藏状态值显示（显示平均值）
+        const hiddenNeuron = neurons[1];
+        const hiddenDisplay = hiddenNeuron.querySelector('.value-display');
+        if (hiddenDisplay) {
+            const avgH = hiddenState.reduce((a, b) => a + Math.abs(b), 0) / hiddenState.length;
+            hiddenDisplay.textContent = avgH.toFixed(3);
+            hiddenDisplay.style.color = '#ed64a6';
+        }
+        
+        // 更新输出值显示（显示预测字符）
+        const outputNeuron = neurons[2];
+        const outputDisplay = outputNeuron.querySelector('.value-display');
+        if (outputDisplay) {
+            // 找到最大概率的输出
+            let maxIdx = 0;
+            let maxProb = output[0];
+            for (let i = 1; i < output.length; i++) {
+                if (output[i] > maxProb) {
+                    maxProb = output[i];
+                    maxIdx = i;
+                }
+            }
+            
+            if (charArray && charArray[maxIdx]) {
+                outputDisplay.textContent = `"${charArray[maxIdx]}" (${(maxProb * 100).toFixed(1)}%)`;
+            } else {
+                outputDisplay.textContent = `${(maxProb * 100).toFixed(1)}%`;
+            }
+            outputDisplay.style.color = '#48bb78';
+        }
+        
+        // 高亮当前时间步
+        timestepBox.classList.add('active');
+        neurons.forEach(n => n.classList.add('active'));
+    }
+    
+    /**
      * 更新时间步显示
      */
     updateTimestepDisplay(t) {
-        const display = document.getElementById('current-step');
-        if (display) {
-            display.textContent = `处理时间步 t=${t}`;
-            display.style.color = '#667eea';
-        }
-        
         // 高亮对应的时间步
-        const timesteps = document.querySelectorAll('.timestep');
+        const timesteps = document.querySelectorAll('.timestep-box');
         timesteps.forEach((ts, i) => {
             if (i === t) {
                 ts.classList.add('active');
                 ts.querySelectorAll('.neuron').forEach(n => n.classList.add('active'));
+            } else if (i < t) {
+                // 之前的时间步保持已处理状态
+                ts.classList.remove('active');
+                ts.classList.add('processed');
             } else {
                 ts.classList.remove('active');
+                ts.classList.remove('processed');
                 ts.querySelectorAll('.neuron').forEach(n => n.classList.remove('active'));
             }
         });
@@ -511,183 +592,9 @@ class RNNVisualizer {
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
-    
-    /**
-     * 动画展示数据流
-     */
-    async animateDataFlow(fromType, toType) {
-        const fromNeurons = this.neurons.filter(n => n.type === fromType);
-        const toNeurons = this.neurons.filter(n => n.type === toType);
-        
-        // 激活连接
-        this.connections.forEach(conn => {
-            const from = this.neurons.find(n => n.id === conn.from);
-            const to = this.neurons.find(n => n.id === conn.to);
-            if (from.type === fromType && to.type === toType) {
-                conn.active = true;
-            }
-        });
-        
-        this.draw();
-        
-        // 激活目标层
-        await this.sleep(this.animationSpeed / 2);
-        this.activateLayer(toType);
-        
-        await this.sleep(this.animationSpeed);
-        this.resetHighlight();
-    }
-}
-
-/**
- * 展开式可视化 - 显示多个时间步
- */
-class UnrolledVisualizer {
-    constructor(containerId) {
-        this.container = document.getElementById(containerId);
-        this.timesteps = [];
-    }
-    
-    /**
-     * 创建时间步节点
-     */
-    createTimesteps(numSteps) {
-        this.container.innerHTML = '';
-        this.timesteps = [];
-        
-        for (let t = 0; t < numSteps; t++) {
-            const step = document.createElement('div');
-            step.className = 'timestep';
-            step.id = `timestep-${t}`;
-            
-            step.innerHTML = `
-                <div class="timestep-label">t=${t}</div>
-                <div class="neuron input-neuron">
-                    <span class="label">x${this.toSubscript(t)}</span>
-                </div>
-                <div class="neuron hidden-neuron">
-                    <span class="label">h${this.toSubscript(t)}</span>
-                </div>
-                <div class="neuron output-neuron">
-                    <span class="label">y${this.toSubscript(t)}</span>
-                </div>
-            `;
-            
-            this.container.appendChild(step);
-            this.timesteps.push(step);
-        }
-        
-        // 添加连接线（使用CSS或SVG）
-        this.addConnections();
-    }
-    
-    /**
-     * 添加连接线
-     */
-    addConnections() {
-        // 这里可以添加SVG连接线来展示时间步之间的连接
-        // 简化起见，使用CSS的border或::after伪元素
-        this.timesteps.forEach((step, i) => {
-            if (i > 0) {
-                step.style.borderLeft = '2px dashed rgba(255, 255, 255, 0.2)';
-            }
-        });
-    }
-    
-    /**
-     * 转换为下标
-     */
-    toSubscript(num) {
-        const subscripts = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
-        return num.toString().split('').map(d => subscripts[parseInt(d)]).join('');
-    }
-    
-    /**
-     * 激活特定时间步
-     */
-    activateTimestep(t) {
-        this.timesteps.forEach((step, i) => {
-            if (i === t) {
-                step.classList.add('active');
-                step.querySelectorAll('.neuron').forEach(n => n.classList.add('active'));
-            } else {
-                step.classList.remove('active');
-                step.querySelectorAll('.neuron').forEach(n => n.classList.remove('active'));
-            }
-        });
-    }
-    
-    /**
-     * 更新神经元值
-     */
-    updateValues(input, hidden, output, t) {
-        const step = this.timesteps[t];
-        if (step) {
-            const neurons = step.querySelectorAll('.neuron');
-            neurons[0].innerHTML = `x${this.toSubscript(t)}: ${input.toFixed(2)}`;
-            neurons[1].innerHTML = `h${this.toSubscript(t)}: ${hidden.toFixed(2)}`;
-            neurons[2].innerHTML = `y${this.toSubscript(t)}: ${output.toFixed(2)}`;
-        }
-    }
-    
-    /**
-     * 重置所有时间步
-     */
-    reset() {
-        this.timesteps.forEach(step => {
-            step.classList.remove('active');
-            step.querySelectorAll('.neuron').forEach(n => n.classList.remove('active'));
-        });
-    }
-}
-
-/**
- * 公式可视化 - 动态显示公式和计算过程
- */
-class FormulaVisualizer {
-    constructor(containerId) {
-        this.container = document.getElementById(containerId);
-    }
-    
-    /**
-     * 显示前向传播公式
-     */
-    showForwardFormula(t) {
-        const formula = `
-            <div class="formula-step">
-                <strong>时间步 t = ${t}:</strong><br>
-                h<sub>${t}</sub> = tanh(W<sub>xh</sub> · x<sub>${t}</sub> + W<sub>hh</sub> · h<sub>${t-1}</sub> + b<sub>h</sub>)<br>
-                y<sub>${t}</sub> = softmax(W<sub>hy</sub> · h<sub>${t}</sub> + b<sub>y</sub>)
-            </div>
-        `;
-        this.container.innerHTML = formula;
-    }
-    
-    /**
-     * 显示反向传播公式
-     */
-    showBackwardFormula(t) {
-        const formula = `
-            <div class="formula-step">
-                <strong>反向传播 t = ${t}:</strong><br>
-                ∂L/∂h<sub>${t}</sub> = ∂L/∂y<sub>${t}</sub> · W<sub>hy</sub><sup>T</sup> + ∂L/∂h<sub>${t+1}</sub> · W<sub>hh</sub><sup>T</sup><br>
-                W<sub>xh</sub> := W<sub>xh</sub> - η · ∂L/∂W<sub>xh</sub><br>
-                W<sub>hh</sub> := W<sub>hh</sub> - η · ∂L/∂W<sub>hh</sub><br>
-                W<sub>hy</sub> := W<sub>hy</sub> - η · ∂L/∂W<sub>hy</sub>
-            </div>
-        `;
-        this.container.innerHTML = formula;
-    }
-    
-    /**
-     * 清空公式
-     */
-    clear() {
-        this.container.innerHTML = '';
-    }
 }
 
 // 导出
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { RNNVisualizer, UnrolledVisualizer, FormulaVisualizer };
+    module.exports = { RNNVisualizer };
 }
