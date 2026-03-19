@@ -189,6 +189,13 @@
                     <input type="range" id="epochs" min="10" max="500" step="10" value="100">
                 </div>
                 
+                <!-- 测试输入 - 新增 -->
+                <div class="control-group">
+                    <label>📝 测试文本（前向传播）:</label>
+                    <input type="text" id="test-input" placeholder="输入要测试的文本，如：床前明月光疑是地上霜" value="">
+                    <small>留空则使用训练数据的前10个字符</small>
+                </div>
+                
                 <!-- 操作按钮 -->
                 <div class="button-group">
                     <button id="btn-train" class="btn btn-success">🔄 开始训练</button>

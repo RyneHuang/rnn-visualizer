@@ -1,5 +1,5 @@
 /**
- * RNN 可视化应用主逻辑
+ * RNN 可视化应用主逻辑（修复版）
  * 连接UI、RNN模型、数据集和可视化模块
  */
 
@@ -171,14 +171,20 @@ async function runForwardPropagation() {
         return;
     }
     
-    const text = trainingData || datasetManager.getTrainingData();
-    if (!text || text.length < 2) {
-        showMessage('请先选择或输入训练数据', 'warning');
-        return;
-    }
+    // 获取用户输入或使用训练数据
+    const inputElement = document.getElementById('test-input');
+    let demoText = '';
     
-    // 取前10个字符作为演示
-    const demoText = text.substring(0, 10);
+    if (inputElement && inputElement.value.trim()) {
+        demoText = inputElement.value.trim();
+    } else {
+        const text = trainingData || datasetManager.getTrainingData();
+        if (!text || text.length < 2) {
+            showMessage('请输入测试文本或选择训练数据', 'warning');
+            return;
+        }
+        demoText = text.substring(0, 10);
+    }
     
     // 准备输入向量
     const inputVectors = [];
@@ -387,7 +393,9 @@ function resetModel() {
     // 重置时间步显示
     document.querySelectorAll('.timestep-box').forEach(ts => {
         ts.classList.remove('active');
+        ts.classList.remove('processed');
         ts.querySelectorAll('.neuron').forEach(n => n.classList.remove('active'));
+        ts.querySelectorAll('.value-display').forEach(vd => vd.textContent = '');
     });
     
     updateExplanation('reset', '');
