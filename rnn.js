@@ -384,7 +384,9 @@ class CharRNN {
      * 将索引转换为字符
      */
     indexToChar_(idx) {
-        return this.indexToChar[idx] || '';
+        const char = this.indexToChar[idx];
+        // 如果找不到字符，返回第一个字符
+        return char !== undefined ? char : (this.chars[0] || '');
     }
     
     /**
@@ -442,11 +444,18 @@ class CharRNN {
             
             // 从输出分布中采样
             const idx = this.sample(y);
-            const char = this.indexToChar_[idx];
-            result += char;
+            const char = this.indexToChar_(idx);
             
-            // 准备下一个输入
-            currentInput = this.charToVector(char);
+            // 确保字符有效
+            if (char && char !== '') {
+                result += char;
+                currentInput = this.charToVector(char);
+            } else {
+                // 如果无效，使用第一个字符
+                const defaultChar = this.chars[0] || '';
+                result += defaultChar;
+                currentInput = this.charToVector(defaultChar);
+            }
         }
         
         return result;
@@ -473,8 +482,9 @@ class CharRNN {
         // 返回概率最高的几个字符
         const predictions = [];
         for (let i = 0; i < y.length; i++) {
+            const char = this.indexToChar_[i];
             predictions.push({
-                char: this.indexToChar_[i],
+                char: char,
                 probability: y[i]
             });
         }
