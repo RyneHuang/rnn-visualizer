@@ -296,15 +296,22 @@ function runPrediction() {
         return;
     }
     
-    const text = trainingData || datasetManager.getTrainingData();
-    if (!text || text.length < 2) {
-        showMessage('没有可用的文本数据', 'warning');
-        return;
-    }
+    // 获取用户输入或使用训练数据
+    const inputElement = document.getElementById('test-input');
+    let sequence = '';
     
-    // 随机选择一个片段作为输入
-    const startIdx = Math.floor(Math.random() * (text.length - 10));
-    const sequence = text.substring(startIdx, startIdx + 10);
+    if (inputElement && inputElement.value.trim()) {
+        sequence = inputElement.value.trim();
+    } else {
+        const text = trainingData || datasetManager.getTrainingData();
+        if (!text || text.length < 2) {
+            showMessage('没有可用的文本数据', 'warning');
+            return;
+        }
+        // 随机选择一个片段作为输入
+        const startIdx = Math.floor(Math.random() * (text.length - 10));
+        sequence = text.substring(startIdx, startIdx + 10);
+    }
     
     // 预测下一个字符
     const predictions = charRNN.predictNext(sequence);
