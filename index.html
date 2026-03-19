@@ -16,65 +16,120 @@
         <div class="main-content">
             <!-- 左侧：RNN结构可视化 -->
             <section class="visualization-panel">
-                <h2>📊 RNN 结构</h2>
+                <h2>📊 RNN 循环结构展示</h2>
                 
-                <!-- 时间步展开视图 -->
-                <div class="rnn-unrolled">
-                    <div class="timestep" id="timestep-0">
-                        <div class="timestep-label">t=0</div>
-                        <div class="neuron input-neuron">
-                            <span class="label">x₀</span>
+                <!-- RNN循环结构图 - 核心展示 -->
+                <div class="rnn-core-structure">
+                    <div class="structure-title">单时间步RNN单元</div>
+                    <div class="rnn-cell-container">
+                        <div class="rnn-cell">
+                            <div class="cell-header">RNN单元 t</div>
+                            <div class="cell-body">
+                                <div class="input-arrow">↓ x_t</div>
+                                <div class="hidden-box">
+                                    <div class="box-title">隐藏层 h_t</div>
+                                    <div class="formula-small">tanh(W·x + U·h + b)</div>
+                                </div>
+                                <div class="output-arrow">↓ y_t</div>
+                            </div>
                         </div>
-                        <div class="neuron hidden-neuron">
-                            <span class="label">h₀</span>
-                        </div>
-                        <div class="neuron output-neuron">
-                            <span class="label">y₀</span>
-                        </div>
-                    </div>
-                    
-                    <div class="timestep" id="timestep-1">
-                        <div class="timestep-label">t=1</div>
-                        <div class="neuron input-neuron">
-                            <span class="label">x₁</span>
-                        </div>
-                        <div class="neuron hidden-neuron">
-                            <span class="label">h₁</span>
-                        </div>
-                        <div class="neuron output-neuron">
-                            <span class="label">y₁</span>
-                        </div>
-                    </div>
-                    
-                    <div class="timestep" id="timestep-2">
-                        <div class="timestep-label">t=2</div>
-                        <div class="neuron input-neuron">
-                            <span class="label">x₂</span>
-                        </div>
-                        <div class="neuron hidden-neuron">
-                            <span class="label">h₂</span>
-                        </div>
-                        <div class="neuron output-neuron">
-                            <span class="label">y₂</span>
-                        </div>
-                    </div>
-                    
-                    <div class="timestep" id="timestep-3">
-                        <div class="timestep-label">t=3</div>
-                        <div class="neuron input-neuron">
-                            <span class="label">x₃</span>
-                        </div>
-                        <div class="neuron hidden-neuron">
-                            <span class="label">h₃</span>
-                        </div>
-                        <div class="neuron output-neuron">
-                            <span class="label">y₃</span>
+                        <!-- 循环箭头 -->
+                        <div class="recurrent-arrow">
+                            <svg width="100" height="150">
+                                <defs>
+                                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#ed64a6"/>
+                                    </marker>
+                                </defs>
+                                <path d="M 10 75 C 10 10, 90 10, 90 75" stroke="#ed64a6" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+                                <text x="50" y="30" text-anchor="middle" fill="#ed64a6" font-size="12">h_{t-1}</text>
+                            </svg>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 动画画布 -->
-                <canvas id="rnn-canvas" width="800" height="400"></canvas>
+                <!-- 时间步展开视图 - 改进版 -->
+                <div class="rnn-unrolled-enhanced">
+                    <div class="unrolled-title">时间步展开 (Unrolling)</div>
+                    <div class="unrolled-container">
+                        <div class="timestep-box" id="timestep-0">
+                            <div class="timestep-label">t=0</div>
+                            <div class="neuron-layer">
+                                <div class="neuron input-neuron" data-value="x₀">
+                                    <span>x₀</span>
+                                    <div class="value-display"></div>
+                                </div>
+                                <div class="neuron hidden-neuron" data-value="h₀">
+                                    <span>h₀</span>
+                                    <div class="value-display"></div>
+                                </div>
+                                <div class="neuron output-neuron" data-value="y₀">
+                                    <span>y₀</span>
+                                    <div class="value-display"></div>
+                                </div>
+                            </div>
+                            <div class="recurrent-connection">↩</div>
+                        </div>
+                        
+                        <div class="arrow-connector">→</div>
+                        
+                        <div class="timestep-box" id="timestep-1">
+                            <div class="timestep-label">t=1</div>
+                            <div class="neuron-layer">
+                                <div class="neuron input-neuron">
+                                    <span>x₁</span>
+                                    <div class="value-display"></div>
+                                </div>
+                                <div class="neuron hidden-neuron">
+                                    <span>h₁</span>
+                                    <div class="value-display"></div>
+                                </div>
+                                <div class="neuron output-neuron">
+                                    <span>y₁</span>
+                                    <div class="value-display"></div>
+                                </div>
+                            </div>
+                            <div class="recurrent-connection">↩</div>
+                        </div>
+                        
+                        <div class="arrow-connector">→</div>
+                        
+                        <div class="timestep-box" id="timestep-2">
+                            <div class="timestep-label">t=2</div>
+                            <div class="neuron-layer">
+                                <div class="neuron input-neuron">
+                                    <span>x₂</span>
+                                    <div class="value-display"></div>
+                                </div>
+                                <div class="neuron hidden-neuron">
+                                    <span>h₂</span>
+                                    <div class="value-display"></div>
+                                </div>
+                                <div class="neuron output-neuron">
+                                    <span>y₂</span>
+                                    <div class="value-display"></div>
+                                </div>
+                            </div>
+                            <div class="recurrent-connection">↩</div>
+                        </div>
+                        
+                        <div class="arrow-connector">→</div>
+                        
+                        <div class="timestep-box ellipsis">
+                            <div class="ellipsis-text">...</div>
+                        </div>
+                    </div>
+                    <div class="recurrent-flow-indicator">
+                        <span class="flow-label">循环连接：h_{t-1} → h_t</span>
+                        <div class="flow-arrow">⟲</div>
+                    </div>
+                </div>
+                
+                <!-- 详细网络结构Canvas -->
+                <div class="network-detail">
+                    <div class="detail-title">详细网络结构（当前时间步）</div>
+                    <canvas id="rnn-canvas" width="800" height="400"></canvas>
+                </div>
                 
                 <!-- 数据流动画区域 -->
                 <div id="flow-animation">
@@ -88,17 +143,40 @@
             <aside class="control-panel">
                 <h2>⚙️ 控制面板</h2>
                 
-                <!-- 输入序列 -->
-                <div class="control-group">
-                    <label>输入序列:</label>
-                    <input type="text" id="input-sequence" value="hello" placeholder="输入字符序列">
-                    <small>每个字符作为一个时间步的输入</small>
+                <!-- 数据集选择 - 新增 -->
+                <div class="control-group dataset-section">
+                    <label>📚 选择训练数据:</label>
+                    <select id="dataset-selector">
+                        <option value="tang-poetry">唐诗选集</option>
+                        <option value="chinese-proverbs">中国成语</option>
+                        <option value="ancient-wisdom">古文名句</option>
+                        <option value="modern-chinese">现代中文</option>
+                        <option value="custom">自定义文本</option>
+                    </select>
+                    
+                    <button id="btn-preview-data" class="btn btn-small">👁️ 预览数据</button>
+                </div>
+                
+                <!-- 数据预览区域 - 新增 -->
+                <div id="data-preview" class="data-preview-box" style="display: none;">
+                    <h4>📄 数据内容</h4>
+                    <div id="data-content"></div>
+                    <div class="data-stats">
+                        <span>字符数: <strong id="char-count">0</strong></span>
+                        <span>唯一字符: <strong id="unique-chars">0</strong></span>
+                    </div>
+                </div>
+                
+                <!-- 自定义输入 - 移到数据集选项中 -->
+                <div class="control-group" id="custom-input-group" style="display: none;">
+                    <label>自定义训练文本:</label>
+                    <textarea id="input-sequence" rows="3" placeholder="输入训练文本..."></textarea>
                 </div>
                 
                 <!-- 参数调节 -->
                 <div class="control-group">
-                    <label>隐藏层大小: <span id="hidden-size-value">8</span></label>
-                    <input type="range" id="hidden-size" min="4" max="32" value="8">
+                    <label>隐藏层大小: <span id="hidden-size-value">16</span></label>
+                    <input type="range" id="hidden-size" min="8" max="64" step="8" value="16">
                 </div>
                 
                 <div class="control-group">
@@ -113,10 +191,11 @@
                 
                 <!-- 操作按钮 -->
                 <div class="button-group">
+                    <button id="btn-train" class="btn btn-success">🔄 开始训练</button>
                     <button id="btn-forward" class="btn btn-primary">▶️ 前向传播</button>
-                    <button id="btn-train" class="btn btn-success">🔄 训练模型</button>
-                    <button id="btn-predict" class="btn btn-info">🎯 预测下一个</button>
-                    <button id="btn-reset" class="btn btn-warning">🔃 重置</button>
+                    <button id="btn-predict" class="btn btn-info">🎯 预测文本</button>
+                    <button id="btn-generate" class="btn btn-primary">✨ 生成文本</button>
+                    <button id="btn-reset" class="btn btn-warning">🔃 重置模型</button>
                 </div>
                 
                 <!-- 训练进度 -->
@@ -176,6 +255,7 @@
     </div>
 
     <script src="rnn.js"></script>
+    <script src="datasets.js"></script>
     <script src="visualize.js"></script>
     <script src="app.js"></script>
 </body>

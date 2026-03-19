@@ -1,6 +1,6 @@
 /**
  * RNN 可视化应用主逻辑
- * 连接UI、RNN模型和可视化模块
+ * 连接UI、RNN模型、数据集和可视化模块
  */
 
 // 全局变量
@@ -8,29 +8,19 @@ let rnn = null;
 let visualizer = null;
 let charRNN = null;
 let isTraining = false;
+let datasetManager = null;
 let trainingData = null;
-
-// 文本数据集 - 用于字符级语言模型演示
-const SAMPLE_TEXTS = [
-    'hello world',
-    'the quick brown fox jumps over the lazy dog',
-    'artificial intelligence is transforming education',
-    'machine learning enables computers to learn from data',
-    'neural networks are inspired by biological brains',
-    'deep learning uses multiple layers to learn features',
-    'recurrent neural networks handle sequential data',
-    'natural language processing is a key AI application',
-    'computer vision enables machines to see and understand',
-    'reinforcement learning teaches agents through rewards'
-];
 
 /**
  * 初始化应用
  */
 function init() {
+    // 初始化数据集管理器
+    datasetManager = new DatasetManager();
+    
     // 初始化可视化器
     visualizer = new RNNVisualizer('rnn-canvas');
-    visualizer.initializeStructure(4, 6, 4); // 4输入，6隐藏，4输出
+    visualizer.initializeStructure(4, 6, 4);
     
     // 设置事件监听器
     setupEventListeners();
@@ -41,14 +31,38 @@ function init() {
     // 初始化字符RNN
     initializeCharRNN();
     
+    // 加载默认数据集
+    loadDataset('tang-poetry');
+    
     // 显示欢迎信息
-    showMessage('RNN可视化演示已就绪！输入字符序列或选择示例文本开始。', 'info');
+    showMessage('RNN可视化演示已就绪！选择数据集，设置参数，开始训练。', 'info');
 }
 
 /**
  * 设置事件监听器
  */
 function setupEventListeners() {
+    // 数据集选择
+    document.getElementById('dataset-selector').addEventListener('change', function() {
+        const datasetId = this.value;
+        loadDataset(datasetId);
+        
+        // 显示/隐藏自定义输入框
+        const customGroup = document.getElementById('custom-input-group');
+        customGroup.style.display = datasetId === 'custom' ? 'block' : 'none';
+    });
+    
+    // 预览数据按钮
+    document.getElementById('btn-preview-data').addEventListener('click', toggleDataPreview);
+    
+    // 自定义输入
+    document.getElementById('input-sequence').addEventListener('input', function() {
+        if (datasetManager.currentDataset === 'custom') {
+            datasetManager.setCustomData(this.value);
+            updateDataStats(this.value);
+        }
+    });
+    
     // 参数滑块
     document.getElementById('hidden-size').addEventListener('input', function() {
         document.getElementById('hidden-size-value').textContent = this.value;
@@ -66,17 +80,55 @@ function setupEventListeners() {
     });
     
     // 按钮事件
-    document.getElementById('btn-forward').addEventListener('click', runForwardPropagation);
     document.getElementById('btn-train').addEventListener('click', startTraining);
+    document.getElementById('btn-forward').addEventListener('click', runForwardPropagation);
     document.getElementById('btn-predict').addEventListener('click', runPrediction);
+    document.getElementById('btn-generate').addEventListener('click', runGeneration);
     document.getElementById('btn-reset').addEventListener('click', resetModel);
+}
+
+/**
+ * 加载数据集
+ */
+function loadDataset(datasetId) {
+    datasetManager.setDataset(datasetId);
+    const data = datasetManager.getTrainingData();
+    trainingData = data;
     
-    // 输入框事件
-    document.getElementById('input-sequence').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            runForwardPropagation();
-        }
-    });
+    // 更新数据统计
+    updateDataStats(data);
+    
+    // 如果数据预览已打开，更新内容
+    const preview = document.getElementById('data-preview');
+    if (preview.style.display !== 'none') {
+        document.getElementById('data-content').textContent = data;
+    }
+}
+
+/**
+ * 切换数据预览
+ */
+function toggleDataPreview() {
+    const preview = document.getElementById('data-preview');
+    const button = document.getElementById('btn-preview-data');
+    
+    if (preview.style.display === 'none') {
+        preview.style.display = 'block';
+        document.getElementById('data-content').textContent = trainingData || datasetManager.getTrainingData();
+        button.textContent = '👁️ 隐藏数据';
+    } else {
+        preview.style.display = 'none';
+        button.textContent = '👁️ 预览数据';
+    }
+}
+
+/**
+ * 更新数据统计
+ */
+function updateDataStats(text) {
+    const stats = datasetManager.getDataStats(text);
+    document.getElementById('char-count').textContent = stats.totalChars;
+    document.getElementById('unique-chars').textContent = stats.uniqueChars;
 }
 
 /**
@@ -96,20 +148,12 @@ function updateParameterDisplays() {
  * 初始化字符级RNN
  */
 function initializeCharRNN() {
-    // 使用所有示例文本构建字符集
-    const allChars = new Set();
-    SAMPLE_TEXTS.forEach(text => {
-        for (const char of text) {
-            allChars.add(char);
-        }
-    });
+    const text = trainingData || datasetManager.getTrainingData();
     
-    // 添加空格和常用标点
-    allChars.add(' ');
-    allChars.add('.');
-    allChars.add(',');
+    // 构建字符集
+    const charSet = new Set([...text]);
+    const charArray = Array.from(charSet).sort();
     
-    const charArray = Array.from(allChars).sort();
     const hiddenSize = parseInt(document.getElementById('hidden-size').value);
     
     charRNN = new CharRNN(charArray, hiddenSize);
@@ -127,15 +171,18 @@ async function runForwardPropagation() {
         return;
     }
     
-    const inputSequence = document.getElementById('input-sequence').value.toLowerCase().trim();
-    if (!inputSequence) {
-        showMessage('请输入字符序列', 'warning');
+    const text = trainingData || datasetManager.getTrainingData();
+    if (!text || text.length < 2) {
+        showMessage('请先选择或输入训练数据', 'warning');
         return;
     }
     
+    // 取前10个字符作为演示
+    const demoText = text.substring(0, 10);
+    
     // 准备输入向量
     const inputVectors = [];
-    for (const char of inputSequence) {
+    for (const char of demoText) {
         const vector = charRNN.charToVector(char);
         inputVectors.push(vector);
     }
@@ -145,7 +192,7 @@ async function runForwardPropagation() {
     await visualizer.animateForward(inputVectors, rnn);
     
     // 显示结果
-    displayForwardResults(inputSequence, rnn);
+    displayForwardResults(demoText, rnn);
 }
 
 /**
@@ -159,7 +206,7 @@ function displayForwardResults(input, rnn) {
     // 隐藏状态变化
     const hiddenDisplay = document.getElementById('hidden-display');
     let hiddenInfo = '';
-    for (let t = 0; t < input.length; t++) {
+    for (let t = 0; t < Math.min(input.length, 5); t++) {
         const h = rnn.getHiddenState(t + 1);
         const avgH = h.reduce((a, b) => a + Math.abs(b), 0) / h.length;
         hiddenInfo += `t=${t}: 均值=${avgH.toFixed(3)}<br>`;
@@ -169,7 +216,7 @@ function displayForwardResults(input, rnn) {
     // 输出预测
     const outputDisplay = document.getElementById('output-display');
     let outputInfo = '';
-    for (let t = 0; t < input.length; t++) {
+    for (let t = 0; t < Math.min(input.length, 5); t++) {
         const y = rnn.getOutput(t);
         const predictedIdx = rnn.predict(y);
         const predictedChar = charRNN.indexToChar_(predictedIdx);
@@ -193,32 +240,25 @@ function startTraining() {
         return;
     }
     
-    if (!charRNN) {
-        showMessage('请先初始化模型', 'error');
+    const text = trainingData || datasetManager.getTrainingData();
+    if (!text || text.length < 10) {
+        showMessage('训练数据太短，至少需要10个字符', 'warning');
         return;
     }
     
     // 重新初始化（应用新的隐藏层大小）
     initializeCharRNN();
     
-    // 准备训练数据
-    const text = document.getElementById('input-sequence').value.toLowerCase().trim();
-    if (!text) {
-        // 随机选择一个示例文本
-        trainingData = SAMPLE_TEXTS[Math.floor(Math.random() * SAMPLE_TEXTS.length)];
-    } else {
-        trainingData = text;
-    }
-    
     const epochs = parseInt(document.getElementById('epochs').value);
     
     isTraining = true;
     updateTrainingUI(true);
     
-    showMessage(`开始训练 "${trainingData}" (${epochs} epochs)...`, 'info');
+    const datasetName = datasetManager.getCurrentDataset().name;
+    showMessage(`开始训练 "${datasetName}" (${epochs} epochs, ${text.length}字符)...`, 'info');
     
     // 开始训练
-    charRNN.train(trainingData, epochs, onTrainingProgress);
+    charRNN.train(text, epochs, onTrainingProgress);
 }
 
 /**
@@ -235,7 +275,7 @@ function onTrainingProgress(epoch, totalEpochs, loss, done) {
         isTraining = false;
         updateTrainingUI(false);
         showMessage(`训练完成！最终Loss: ${loss.toFixed(4)}`, 'success');
-        updateExplanation('trained', trainingData);
+        updateExplanation('trained', trainingData || datasetManager.getTrainingData());
     }
 }
 
@@ -248,23 +288,28 @@ function runPrediction() {
         return;
     }
     
-    const sequence = document.getElementById('input-sequence').value.toLowerCase().trim();
-    if (!sequence || sequence.length < 2) {
-        showMessage('请输入至少2个字符的序列', 'warning');
+    const text = trainingData || datasetManager.getTrainingData();
+    if (!text || text.length < 2) {
+        showMessage('没有可用的文本数据', 'warning');
         return;
     }
+    
+    // 随机选择一个片段作为输入
+    const startIdx = Math.floor(Math.random() * (text.length - 10));
+    const sequence = text.substring(startIdx, startIdx + 10);
     
     // 预测下一个字符
     const predictions = charRNN.predictNext(sequence);
     
     // 显示结果
     const outputDisplay = document.getElementById('output-display');
-    let outputInfo = `<strong>给定序列:</strong> "${sequence}"<br><br>`;
+    let outputInfo = `<strong>输入序列:</strong> "${sequence}"<br><br>`;
     outputInfo += '<strong>预测下一个字符:</strong><br>';
     
     predictions.forEach((pred, i) => {
         const bar = '█'.repeat(Math.floor(pred.probability * 20));
-        outputInfo += `${i + 1}. "${pred.char}" ${(pred.probability * 100).toFixed(1)}% ${bar}<br>`;
+        const char = pred.char || '?';
+        outputInfo += `${i + 1}. "${char}" ${(pred.probability * 100).toFixed(1)}% ${bar}<br>`;
     });
     
     outputDisplay.innerHTML = outputInfo;
@@ -273,6 +318,44 @@ function runPrediction() {
     updateExplanation('prediction', sequence);
     
     showMessage('预测完成！', 'success');
+}
+
+/**
+ * 生成文本
+ */
+function runGeneration() {
+    if (!charRNN) {
+        showMessage('请先初始化模型', 'error');
+        return;
+    }
+    
+    const text = trainingData || datasetManager.getTrainingData();
+    if (!text || text.length < 1) {
+        showMessage('没有可用的文本数据', 'warning');
+        return;
+    }
+    
+    // 随机选择种子字符
+    const seedIdx = Math.floor(Math.random() * text.length);
+    const seedChar = text[seedIdx];
+    
+    // 生成文本
+    const generated = charRNN.generate(seedChar, 50);
+    
+    // 显示结果
+    const outputDisplay = document.getElementById('output-display');
+    outputDisplay.innerHTML = `
+        <strong>种子字符:</strong> "${seedChar}"<br><br>
+        <strong>生成文本:</strong><br>
+        <div style="font-family: 'Courier New', monospace; line-height: 1.8; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+            ${generated}
+        </div>
+    `;
+    
+    // 更新解释
+    updateExplanation('generation', generated);
+    
+    showMessage(`生成了 ${generated.length} 个字符`, 'success');
 }
 
 /**
@@ -300,7 +383,7 @@ function resetModel() {
     visualizer.draw();
     
     // 重置时间步显示
-    document.querySelectorAll('.timestep').forEach(ts => {
+    document.querySelectorAll('.timestep-box').forEach(ts => {
         ts.classList.remove('active');
         ts.querySelectorAll('.neuron').forEach(n => n.classList.remove('active'));
     });
@@ -324,7 +407,7 @@ function updateTrainingUI(training) {
     document.getElementById('hidden-size').disabled = training;
     document.getElementById('learning-rate').disabled = training;
     document.getElementById('epochs').disabled = training;
-    document.getElementById('input-sequence').disabled = training;
+    document.getElementById('dataset-selector').disabled = training;
 }
 
 /**
@@ -341,17 +424,21 @@ function updateExplanation(type, data) {
             • 每个时间步接收当前输入字符和上一时刻的隐藏状态<br>
             • 计算新的隐藏状态，记忆序列信息<br>
             • 产生对下一个字符的预测<br><br>
-            隐藏状态h<sub>t</sub>携带了之前所有字符的信息，使RNN能够理解上下文。
+            <strong>循环连接（RNN核心特点）：</strong><br>
+            隐藏状态h<sub>t</sub>通过循环连接传递到下一时间步，<br>
+            使网络能够"记住"之前的信息，这是RNN处理序列数据的关键。
         `,
         
         trained: `
             <strong>训练完成！</strong><br><br>
-            训练文本: "${data}"<br><br>
-            通过${parseInt(document.getElementById('epochs').value)}轮训练，RNN学会了：<br>
+            训练数据: ${data.length}个字符<br><br>
+            通过训练，RNN学会了：<br>
             • 字符之间的统计规律<br>
             • 序列的语法结构<br>
             • 预测下一个字符的能力<br><br>
-            可以使用"预测下一个"功能测试模型的泛化能力。
+            <strong>可以尝试：</strong><br>
+            • "预测文本" - 输入一段文本，预测下一个字符<br>
+            • "生成文本" - 从随机种子生成新文本
         `,
         
         prediction: `
@@ -365,13 +452,25 @@ function updateExplanation(type, data) {
             概率越高，表示RNN越确信该字符是合理的下一个字符。
         `,
         
+        generation: `
+            <strong>文本生成演示：</strong><br><br>
+            生成结果: "${data}"<br><br>
+            RNN通过以下方式生成文本：<br>
+            1. 从种子字符开始<br>
+            2. 预测下一个字符的概率分布<br>
+            3. 从分布中采样一个字符<br>
+            4. 将采样的字符作为下一个输入<br>
+            5. 重复步骤2-4<br><br>
+            循环连接使得每个生成的字符都依赖于之前所有的上下文。
+        `,
+        
         reset: `
             <strong>模型已重置</strong><br><br>
             所有参数已重新随机初始化，RNN回到初始状态。<br><br>
             现在可以：<br>
-            • 输入新的序列进行前向传播<br>
-            • 使用新的文本训练模型<br>
-            • 调整参数（隐藏层大小、学习率等）
+            • 选择新的训练数据集<br>
+            • 调整参数（隐藏层大小、学习率等）<br>
+            • 重新训练模型
         `
     };
     
@@ -445,13 +544,6 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-/**
- * 生成示例文本
- */
-function generateSampleText() {
-    return SAMPLE_TEXTS[Math.floor(Math.random() * SAMPLE_TEXTS.length)];
-}
-
 // 页面加载完成后初始化
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
@@ -465,8 +557,9 @@ window.RNNApp = {
     runForwardPropagation,
     startTraining,
     runPrediction,
+    runGeneration,
     resetModel,
-    generateSampleText,
     getCharRNN: () => charRNN,
-    getVisualizer: () => visualizer
+    getVisualizer: () => visualizer,
+    getDatasetManager: () => datasetManager
 };

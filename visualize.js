@@ -151,7 +151,10 @@ class RNNVisualizer {
         // 绘制背景网格
         this.drawGrid();
         
-        // 绘制连接线
+        // 绘制循环连接（最重要！）
+        this.drawRecurrentConnections();
+        
+        // 绘制普通连接线
         this.connections.forEach(conn => this.drawConnection(conn));
         
         // 绘制神经元
@@ -159,6 +162,71 @@ class RNNVisualizer {
         
         // 绘制标签
         this.drawLabels();
+        
+        // 绘制循环箭头指示
+        this.drawRecurrentIndicator();
+    }
+    
+    /**
+     * 绘制循环连接 - RNN的核心特点
+     */
+    drawRecurrentConnections() {
+        const ctx = this.ctx;
+        const hiddenNeurons = this.neurons.filter(n => n.type === 'hidden');
+        
+        if (hiddenNeurons.length === 0) return;
+        
+        // 绘制自循环箭头
+        ctx.save();
+        ctx.strokeStyle = '#ed64a6';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]);
+        
+        hiddenNeurons.forEach(neuron => {
+            ctx.beginPath();
+            // 绘制一个弧形箭头，表示循环连接
+            const radius = neuron.radius + 15;
+            ctx.arc(neuron.x, neuron.y, radius, -Math.PI * 0.7, -Math.PI * 0.3);
+            ctx.stroke();
+            
+            // 绘制箭头
+            const arrowX = neuron.x + radius * Math.cos(-Math.PI * 0.3);
+            const arrowY = neuron.y + radius * Math.sin(-Math.PI * 0.3);
+            
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX - 8, arrowY - 5);
+            ctx.lineTo(arrowX - 5, arrowY + 8);
+            ctx.closePath();
+            ctx.fillStyle = '#ed64a6';
+            ctx.fill();
+        });
+        
+        ctx.restore();
+    }
+    
+    /**
+     * 绘制循环指示器
+     */
+    drawRecurrentIndicator() {
+        const ctx = this.ctx;
+        const hiddenNeurons = this.neurons.filter(n => n.type === 'hidden');
+        
+        if (hiddenNeurons.length === 0) return;
+        
+        // 在隐藏层上方添加文字说明
+        const avgX = hiddenNeurons.reduce((sum, n) => sum + n.x, 0) / hiddenNeurons.length;
+        const minY = Math.min(...hiddenNeurons.map(n => n.y));
+        
+        ctx.save();
+        ctx.fillStyle = '#ed64a6';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('⟲ 循环连接 h_{t-1} → h_t', avgX, minY - 40);
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#a0aec0';
+        ctx.fillText('(RNN核心：记忆传递)', avgX, minY - 20);
+        ctx.restore();
     }
     
     /**
